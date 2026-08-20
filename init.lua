@@ -11,6 +11,8 @@ vim.opt.termguicolors = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 250
+vim.opt.ignorecase = true
+vim.opt.smartcase = true
 vim.cmd.colorscheme("vsdark")
 
 -- ============================================
