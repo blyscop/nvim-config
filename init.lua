@@ -49,10 +49,15 @@ require("lazy").setup({
 
   -- Coloration syntaxique fine
   { "nvim-treesitter/nvim-treesitter",
+    branch = "main",
     build = ":TSUpdate",
-    opts = { ensure_installed = { "c_sharp", "lua", "sql", "json", "yaml" },
-             highlight = { enable = true } },
-    config = function(_, opts) require("nvim-treesitter.configs").setup(opts) end },
+    config = function()
+      require("nvim-treesitter").install({ "c_sharp", "lua", "sql", "json", "yaml" })
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "cs", "lua", "sql", "json", "yaml" },
+        callback = function() vim.treesitter.start() end,
+      })
+    end },
 
   -- Autocomplétion
   { "hrsh7th/nvim-cmp",
