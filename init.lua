@@ -33,6 +33,7 @@ require("lazy").setup({
   -- Recherche floue, explorateur de fichiers et icônes
   { "nvim-mini/mini.nvim",
     version = false,
+    event = "VeryLazy",
     keys = {
       { "<leader>ff", function() MiniPick.builtin.files() end,     desc = "Fichiers" },
       { "<leader>fg", function() MiniPick.builtin.grep_live() end, desc = "Rechercher" },
@@ -43,6 +44,40 @@ require("lazy").setup({
       require("mini.icons").setup()
       require("mini.pick").setup()
       require("mini.files").setup()
+
+      local clue = require("mini.clue")
+      clue.setup({
+        triggers = {
+          { mode = "n", keys = "<Leader>" },
+          { mode = "x", keys = "<Leader>" },
+          { mode = "n", keys = "g" },
+          { mode = "x", keys = "g" },
+          { mode = "n", keys = "z" },
+          { mode = "x", keys = "z" },
+          { mode = "n", keys = "[" },
+          { mode = "n", keys = "]" },
+          { mode = "n", keys = "'" },
+          { mode = "n", keys = "`" },
+          { mode = "n", keys = '"' },
+          { mode = "x", keys = '"' },
+          { mode = "i", keys = "<C-r>" },
+          { mode = "n", keys = "<C-w>" },
+        },
+        clues = {
+          { mode = "n", keys = "<Leader>d", desc = "+Débogage" },
+          { mode = "n", keys = "<Leader>f", desc = "+Fichiers et recherche" },
+          { mode = "n", keys = "<Leader>c", desc = "+Code" },
+          { mode = "n", keys = "<Leader>r", desc = "+Refactoring" },
+          clue.gen_clues.builtin_completion(),
+          clue.gen_clues.g(),
+          clue.gen_clues.marks(),
+          clue.gen_clues.registers(),
+          clue.gen_clues.square_brackets(),
+          clue.gen_clues.windows(),
+          clue.gen_clues.z(),
+        },
+        window = { delay = 300 },
+      })
     end },
 
   -- Coloration syntaxique fine
