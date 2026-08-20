@@ -275,8 +275,40 @@ require("lazy").setup({
 -- ============================================
 --  Raccourcis LSP (actifs dès qu'un serveur s'attache)
 -- ============================================
+local solutions_entierement_indexees = {}
+
+local function surveiller_la_fin_de_l_indexation(client)
+  local METHODE = "workspace/projectInitializationComplete"
+  local handler_du_plugin = client.handlers[METHODE]
+  client.handlers[METHODE] = function(err, resultat, contexte, config)
+    solutions_entierement_indexees[contexte.client_id] = true
+    if handler_du_plugin then
+      return handler_du_plugin(err, resultat, contexte, config)
+    end
+  end
+end
+
+local function le_renommage_couvrirait_toute_la_solution(bufnr)
+  local roslyn = vim.lsp.get_clients({ bufnr = bufnr, name = "roslyn" })[1]
+  return roslyn == nil or solutions_entierement_indexees[roslyn.id] == true
+end
+
+local function renommer_sans_risque_de_portee_partielle()
+  if not le_renommage_couvrirait_toute_la_solution(0) then
+    return vim.notify(
+      "Solution en cours d'indexation : le renommage ne toucherait que le fichier courant.",
+      vim.log.levels.WARN, { title = "Renommer" })
+  end
+  vim.lsp.buf.rename()
+end
+
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client.name == "roslyn" then
+      surveiller_la_fin_de_l_indexation(client)
+    end
+
     local map = function(k, fn, desc)
       vim.keymap.set("n", k, fn, { buffer = ev.buf, desc = desc })
     end
@@ -284,7 +316,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("gr", vim.lsp.buf.references,      "Références")
     map("gi", vim.lsp.buf.implementation,  "Implémentations")
     map("K",  vim.lsp.buf.hover,           "Documentation")
-    map("<leader>rn", vim.lsp.buf.rename,  "Renommer")
+    map("<leader>rn", renommer_sans_risque_de_portee_partielle, "Renommer")
     map("<leader>ca", vim.lsp.buf.code_action, "Action de code")
     map("<leader>fm", function() vim.lsp.buf.format() end, "Formater")
     map("[d", function() vim.diagnostic.jump({ count = -1 }) end, "Diagnostic précédent")
