@@ -31,21 +31,20 @@ require("lazy").setup({
   { "catppuccin/nvim", name = "catppuccin", priority = 1000,
     config = function() vim.cmd.colorscheme("catppuccin-mocha") end },
 
-  -- Recherche de fichiers et de texte (l'équivalent du Ctrl-Shift-F de Rider)
-  { "nvim-telescope/telescope.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
+  -- Recherche floue, explorateur de fichiers et icônes
+  { "nvim-mini/mini.nvim",
+    version = false,
     keys = {
-      { "<leader>ff", "<cmd>Telescope find_files<cr>", desc = "Fichiers" },
-      { "<leader>fg", "<cmd>Telescope live_grep<cr>",  desc = "Rechercher" },
-      { "<leader>fb", "<cmd>Telescope buffers<cr>",    desc = "Buffers" },
+      { "<leader>ff", function() MiniPick.builtin.files() end,     desc = "Fichiers" },
+      { "<leader>fg", function() MiniPick.builtin.grep_live() end, desc = "Rechercher" },
+      { "<leader>fb", function() MiniPick.builtin.buffers() end,   desc = "Buffers" },
+      { "<leader>e",  function() MiniFiles.open() end,             desc = "Explorateur" },
     },
-  },
-
-  -- Explorateur de fichiers latéral
-  { "nvim-tree/nvim-tree.lua",
-    keys = { { "<leader>e", "<cmd>NvimTreeToggle<cr>", desc = "Explorateur" } },
-    opts = {},
-  },
+    config = function()
+      require("mini.icons").setup()
+      require("mini.pick").setup()
+      require("mini.files").setup()
+    end },
 
   -- Coloration syntaxique fine
   { "nvim-treesitter/nvim-treesitter",
