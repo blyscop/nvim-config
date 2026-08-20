@@ -52,11 +52,28 @@ require("lazy").setup({
     branch = "main",
     build = ":TSUpdate",
     config = function()
-      require("nvim-treesitter").install({ "c_sharp", "lua", "sql", "json", "yaml" })
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "cs", "lua", "sql", "json", "yaml" },
-        callback = function() vim.treesitter.start() end,
+      require("nvim-treesitter").install({
+        "c_sharp", "razor", "xml", "html", "css", "javascript", "typescript",
+        "json", "yaml", "toml", "ini", "sql",
+        "markdown", "markdown_inline", "bash", "python", "lua",
+        "vim", "vimdoc", "query", "regex", "diff", "dockerfile",
+        "gitcommit", "gitignore", "git_config", "git_rebase",
       })
+
+      local LIGNES_MAX_AVANT_RALENTISSEMENT_DU_PARSING = 20000
+
+      local function activer_coloration_si_parser_disponible(evenement)
+        if vim.api.nvim_buf_line_count(evenement.buf) > LIGNES_MAX_AVANT_RALENTISSEMENT_DU_PARSING then
+          return
+        end
+        local langage = vim.treesitter.language.get_lang(evenement.match)
+        local parser_charge, disponible = pcall(vim.treesitter.language.add, langage)
+        if parser_charge and disponible then
+          pcall(vim.treesitter.start, evenement.buf, langage)
+        end
+      end
+
+      vim.api.nvim_create_autocmd("FileType", { callback = activer_coloration_si_parser_disponible })
     end },
 
   -- Autocomplétion
