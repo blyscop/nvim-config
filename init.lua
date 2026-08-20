@@ -11,6 +11,7 @@ vim.opt.termguicolors = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 250
+vim.cmd.colorscheme("vsdark")
 
 -- ============================================
 --  Installation automatique de lazy.nvim
@@ -26,10 +27,6 @@ vim.opt.rtp:prepend(lazypath)
 --  Plugins
 -- ============================================
 require("lazy").setup({
-
-  -- Thème
-  { "catppuccin/nvim", name = "catppuccin", priority = 1000,
-    config = function() vim.cmd.colorscheme("catppuccin-mocha") end },
 
   -- Recherche floue, explorateur de fichiers et icônes
   { "nvim-mini/mini.nvim",
