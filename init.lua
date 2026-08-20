@@ -13,6 +13,8 @@ vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 250
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
+vim.opt.spell = true
+vim.opt.spelllang = { "fr", "en" }
 vim.cmd.colorscheme("vsdark")
 
 -- ============================================
@@ -111,7 +113,9 @@ require("lazy").setup({
 
   -- Autocomplétion
   { "hrsh7th/nvim-cmp",
-    dependencies = { "hrsh7th/cmp-nvim-lsp", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip" },
+    dependencies = { "hrsh7th/cmp-nvim-lsp", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip",
+                     "hrsh7th/cmp-buffer", "hrsh7th/cmp-path",
+                     "f3fora/cmp-spell", "windwp/nvim-autopairs", "onsails/lspkind.nvim" },
     config = function()
       local cmp = require("cmp")
       cmp.setup({
@@ -122,9 +126,42 @@ require("lazy").setup({
           ["<Tab>"]     = cmp.mapping.select_next_item(),
           ["<S-Tab>"]   = cmp.mapping.select_prev_item(),
         }),
-        sources = { { name = "nvim_lsp" }, { name = "luasnip" } },
+        sources = {
+          { name = "nvim_lsp" },
+          { name = "luasnip" },
+          { name = "buffer", keyword_length = 3 },
+          { name = "spell",  keyword_length = 3 },
+          { name = "path" },
+        },
+        formatting = {
+          format = require("lspkind").cmp_format({
+            mode = "symbol_text",
+            maxwidth = 50,
+            ellipsis_char = "…",
+            menu = {
+              nvim_lsp = "[LSP]",
+              luasnip  = "[Snip]",
+              buffer   = "[Buf]",
+              spell    = "[Dico]",
+              path     = "[Chemin]",
+            },
+          }),
+        },
       })
+
+      require("nvim-autopairs").setup({})
+      cmp.event:on("confirm_done", require("nvim-autopairs.completion.cmp").on_confirm_done())
     end },
+
+  -- Signature de la méthode pendant la saisie des arguments
+  { "ray-x/lsp_signature.nvim",
+    event = "InsertEnter",
+    opts = {
+      bind = true,
+      hint_enable = false,
+      floating_window = true,
+      handler_opts = { border = "rounded" },
+    } },
 
   -- === Le cœur du dispositif C# ===
   { "seblyng/roslyn.nvim",
