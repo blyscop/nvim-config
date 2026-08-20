@@ -131,25 +131,106 @@ require("lazy").setup({
         args = { "--interpreter=vscode" },
       }
 
+      local function solution_la_plus_proche()
+        return vim.fs.find(function(nom) return nom:match("%.sln$") end,
+          { upward = true, path = vim.fn.getcwd(), type = "file" })[1]
+      end
+
+      local function projets_declares_par_la_solution(solution)
+        local projets = {}
+        for _, ligne in ipairs(vim.fn.readfile(solution)) do
+          local relatif = ligne:match('^Project%b()%s*=%s*"[^"]*",%s*"([^"]+%.csproj)"')
+          if relatif then
+            table.insert(projets, vim.fs.dirname(solution) .. "/" .. relatif:gsub("\\", "/"))
+          end
+        end
+        return projets
+      end
+
+      local NATURE_PAR_SDK = {
+        ["Microsoft.NET.Sdk.Web"] = "web",
+        ["Microsoft.NET.Sdk.Worker"] = "worker",
+      }
+
+      local function nature_executable(csproj)
+        if vim.fn.filereadable(csproj) ~= 1 then return nil end
+        local contenu = table.concat(vim.fn.readfile(csproj), "\n")
+        if contenu:find("Microsoft.NET.Test.Sdk", 1, true) then return nil end
+        if contenu:match("<IsTestProject>%s*[Tt]rue") then return nil end
+        if contenu:match("<AWSProjectType>%s*Lambda") then return "lambda" end
+        local sdk = contenu:match('Sdk="([^"]+)"')
+        if sdk and NATURE_PAR_SDK[sdk] then return NATURE_PAR_SDK[sdk] end
+        if contenu:match("<OutputType>%s*Exe%s*</OutputType>") then return "console" end
+        return nil
+      end
+
+      local function projets_de_demarrage()
+        local solution = solution_la_plus_proche()
+        local candidats = solution and projets_declares_par_la_solution(solution)
+          or vim.fn.glob(vim.fn.getcwd() .. "/**/*.csproj", false, true)
+        local demarrables = {}
+        for _, csproj in ipairs(candidats) do
+          local nature = nature_executable(csproj)
+          if nature then table.insert(demarrables, { csproj = csproj, nature = nature }) end
+        end
+        return demarrables
+      end
+
+      local function choisir_le_projet_de_demarrage()
+        local demarrables = projets_de_demarrage()
+        if #demarrables == 0 then
+          error("Aucun projet démarrable trouvé depuis " .. vim.fn.getcwd())
+        end
+        if #demarrables == 1 then return demarrables[1].csproj end
+        local choix = require("dap.ui").pick_one(demarrables, "Projet à déboguer : ", function(p)
+          return string.format("%s  [%s]", vim.fn.fnamemodify(p.csproj, ":t:r"), p.nature)
+        end)
+        return choix and choix.csproj
+      end
+
+      local projet_retenu_pour_la_session = nil
+
+      local function projet_de_la_session()
+        if not projet_retenu_pour_la_session then
+          projet_retenu_pour_la_session = choisir_le_projet_de_demarrage()
+        end
+        if not projet_retenu_pour_la_session then error("Débogage annulé") end
+        return projet_retenu_pour_la_session
+      end
+
+      local function oublier_le_projet_retenu()
+        projet_retenu_pour_la_session = nil
+      end
+
+      dap.listeners.after.event_terminated.projet = oublier_le_projet_retenu
+      dap.listeners.after.event_exited.projet     = oublier_le_projet_retenu
+
       local function la_plus_recemment_compilee(a, b)
         return vim.fn.getftime(a) > vim.fn.getftime(b)
       end
 
-      local function dll_du_projet_courant()
-        local racine = vim.fn.getcwd()
-        local nom = vim.fn.fnamemodify(racine, ":t")
-        local compilations = vim.fn.glob(racine .. "/bin/Debug/*/" .. nom .. ".dll", false, true)
-        table.sort(compilations, la_plus_recemment_compilee)
-        if #compilations > 0 then return compilations[1] end
-        return vim.fn.input("Chemin de la DLL : ", racine .. "/bin/Debug/", "file")
+      local function abandonner_en_liberant_le_choix(message)
+        oublier_le_projet_retenu()
+        error(message)
       end
 
       local function compiler_puis_localiser_la_dll()
-        local sortie = vim.fn.system({ "dotnet", "build", vim.fn.getcwd() })
+        local csproj = projet_de_la_session()
+        local sortie = vim.fn.system({ "dotnet", "build", csproj })
         if vim.v.shell_error ~= 0 then
-          error("Échec de la compilation, débogage annulé :\n" .. sortie)
+          abandonner_en_liberant_le_choix("Échec de la compilation, débogage annulé :\n" .. sortie)
         end
-        return dll_du_projet_courant()
+        local nom = vim.fn.fnamemodify(csproj, ":t:r")
+        local compilations = vim.fn.glob(vim.fs.dirname(csproj) .. "/bin/Debug/*/" .. nom .. ".dll", false, true)
+        table.sort(compilations, la_plus_recemment_compilee)
+        if not compilations[1] then
+          abandonner_en_liberant_le_choix("DLL introuvable après compilation de " .. nom)
+        end
+        return compilations[1]
+      end
+
+      local function dossier_du_projet_de_la_session()
+        return vim.fs.dirname(projet_de_la_session())
       end
 
       dap.configurations.cs = {
@@ -158,6 +239,7 @@ require("lazy").setup({
           name = "Lancer (build + debug)",
           request = "launch",
           program = compiler_puis_localiser_la_dll,
+          cwd = dossier_du_projet_de_la_session,
           env = { ASPNETCORE_ENVIRONMENT = "Development" },
         },
         {
