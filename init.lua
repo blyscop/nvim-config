@@ -102,6 +102,89 @@ require("lazy").setup({
       require("roslyn").setup()
     end },
 
+  -- === Débogage ===
+  { "mfussenegger/nvim-dap",
+    dependencies = {
+      "rcarriga/nvim-dap-ui",
+      "nvim-neotest/nvim-nio",
+      "theHamsta/nvim-dap-virtual-text",
+    },
+    config = function()
+      local dap, dapui = require("dap"), require("dapui")
+      dapui.setup()
+      require("nvim-dap-virtual-text").setup()
+
+      dap.listeners.before.attach.dapui_config           = function() dapui.open() end
+      dap.listeners.before.launch.dapui_config           = function() dapui.open() end
+      dap.listeners.before.event_terminated.dapui_config = function() dapui.close() end
+      dap.listeners.before.event_exited.dapui_config     = function() dapui.close() end
+
+      local function chemin_du_debogueur()
+        local installe_sur_le_systeme = vim.fn.exepath("netcoredbg")
+        if installe_sur_le_systeme ~= "" then return installe_sur_le_systeme end
+        return vim.fn.stdpath("data") .. "/mason/bin/netcoredbg"
+      end
+
+      dap.adapters.coreclr = {
+        type = "executable",
+        command = chemin_du_debogueur(),
+        args = { "--interpreter=vscode" },
+      }
+
+      local function la_plus_recemment_compilee(a, b)
+        return vim.fn.getftime(a) > vim.fn.getftime(b)
+      end
+
+      local function dll_du_projet_courant()
+        local racine = vim.fn.getcwd()
+        local nom = vim.fn.fnamemodify(racine, ":t")
+        local compilations = vim.fn.glob(racine .. "/bin/Debug/*/" .. nom .. ".dll", false, true)
+        table.sort(compilations, la_plus_recemment_compilee)
+        if #compilations > 0 then return compilations[1] end
+        return vim.fn.input("Chemin de la DLL : ", racine .. "/bin/Debug/", "file")
+      end
+
+      local function compiler_puis_localiser_la_dll()
+        local sortie = vim.fn.system({ "dotnet", "build", vim.fn.getcwd() })
+        if vim.v.shell_error ~= 0 then
+          error("Échec de la compilation, débogage annulé :\n" .. sortie)
+        end
+        return dll_du_projet_courant()
+      end
+
+      dap.configurations.cs = {
+        {
+          type = "coreclr",
+          name = "Lancer (build + debug)",
+          request = "launch",
+          program = compiler_puis_localiser_la_dll,
+          env = { ASPNETCORE_ENVIRONMENT = "Development" },
+        },
+        {
+          type = "coreclr",
+          name = "Attacher à un processus",
+          request = "attach",
+          processId = require("dap.utils").pick_process,
+        },
+      }
+    end,
+    keys = {
+      -- Touches calquées sur Rider
+      { "<F5>",  function() require("dap").continue() end,          desc = "Continuer / démarrer" },
+      { "<F8>",  function() require("dap").step_over() end,         desc = "Pas au-dessus" },
+      { "<F7>",  function() require("dap").step_into() end,         desc = "Pas dans" },
+      { "<S-F8>",function() require("dap").step_out() end,          desc = "Pas hors" },
+      { "<leader>b", function() require("dap").toggle_breakpoint() end, desc = "Breakpoint" },
+      { "<leader>B", function()
+          require("dap").set_breakpoint(vim.fn.input("Condition : "))
+        end, desc = "Breakpoint conditionnel" },
+      { "<leader>dr", function() require("dap").repl.open() end,    desc = "Console REPL" },
+      { "<leader>du", function() require("dapui").toggle() end,     desc = "Interface debug" },
+      { "<leader>dt", function() require("dap").terminate() end,    desc = "Arrêter" },
+      { "<leader>dk", function() require("dapui").eval() end,       desc = "Évaluer sous le curseur" },
+    },
+  },
+
   -- Client base de données (voir étape 8)
   { "tpope/vim-dadbod" },
   { "kristijanhusak/vim-dadbod-ui",
