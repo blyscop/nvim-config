@@ -171,14 +171,54 @@ local function du_bas_vers_le_haut(a, b)
   return a.colonne > b.colonne
 end
 
+local derniere_operation = nil
+
+local function etat_d_undo(bufnr)
+  return vim.api.nvim_buf_call(bufnr, function() return vim.fn.undotree().seq_cur end)
+end
+
 local function appliquer(modifications)
   table.sort(modifications, du_bas_vers_le_haut)
-  local buffers = {}
+  local avant = {}
   for _, m in ipairs(modifications) do
+    if avant[m.bufnr] == nil then
+      avant[m.bufnr] = { sequence = etat_d_undo(m.bufnr), deja_enregistre = not vim.bo[m.bufnr].modified }
+    end
     vim.api.nvim_buf_set_text(m.bufnr, m.ligne, m.colonne, m.ligne, m.colonne, { m.texte })
-    buffers[m.bufnr] = true
   end
-  return vim.tbl_keys(buffers)
+  derniere_operation = avant
+  return vim.tbl_keys(avant)
+end
+
+function M.annuler()
+  if not derniere_operation then
+    return vim.notify("Aucun refactoring à annuler dans cette session.", vim.log.levels.WARN)
+  end
+
+  local restaures, disparus, ecrits = {}, 0, 0
+  for bufnr, avant in pairs(derniere_operation) do
+    if not vim.api.nvim_buf_is_loaded(bufnr) then
+      disparus = disparus + 1
+    else
+      vim.api.nvim_buf_call(bufnr, function()
+        vim.cmd("silent undo " .. avant.sequence)
+        if avant.deja_enregistre and vim.bo.modified then
+          vim.cmd("silent write")
+          ecrits = ecrits + 1
+        end
+      end)
+      table.insert(restaures, vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t"))
+    end
+  end
+
+  derniere_operation = nil
+  table.sort(restaures)
+  local message = string.format("%d buffer(s) restauré(s) (%d réécrit(s) sur disque) :\n  %s",
+    #restaures, ecrits, table.concat(restaures, "\n  "))
+  if disparus > 0 then
+    message = message .. string.format("\n%d buffer(s) fermé(s) entre-temps : à restaurer via git.", disparus)
+  end
+  vim.notify(message, vim.log.levels.INFO, { title = "Refactoring annulé" })
 end
 
 local function resume(modifications, ignorees)
@@ -237,11 +277,14 @@ function M.ajouter_un_parametre()
     }, function(choix)
       if choix ~= "Appliquer" then return end
       local buffers = appliquer(modifications)
-      vim.notify(string.format("%d insertion(s) appliquée(s) dans %d buffer(s). Vérifie puis :wa",
+      vim.notify(string.format("%d insertion(s) dans %d buffer(s). Vérifie puis :wa — ou :RefactoAnnuler",
         #modifications, #buffers), vim.log.levels.INFO)
     end)
   end)
 end
+
+vim.api.nvim_create_user_command("RefactoAnnuler", function() M.annuler() end,
+  { desc = "Annuler le dernier refactoring de signature" })
 
 M.solution_prete = function() return true end
 
