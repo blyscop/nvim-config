@@ -18,6 +18,11 @@ vim.opt.spell = true
 vim.opt.spelllang = { "fr", "en" }
 vim.cmd.colorscheme("vsdark")
 
+local SERVEUR_ROSLYN_AVEC_CHANGE_SIGNATURE = "roslyn-language-server-cs"
+if vim.fn.executable(SERVEUR_ROSLYN_AVEC_CHANGE_SIGNATURE) == 1 then
+  vim.lsp.config("roslyn", { cmd = { SERVEUR_ROSLYN_AVEC_CHANGE_SIGNATURE, "--stdio" } })
+end
+
 -- ============================================
 --  Installation automatique de lazy.nvim
 -- ============================================
