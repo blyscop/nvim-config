@@ -358,7 +358,7 @@ require("lazy").setup({
 -- ============================================
 local function le_renommage_couvrirait_toute_la_solution(bufnr)
   local roslyn = vim.lsp.get_clients({ bufnr = bufnr, name = "roslyn" })[1]
-  return roslyn == nil or require("csharp-signature").solution_indexee(roslyn)
+  return roslyn == nil or require("csharp-signature").solution_indexed(roslyn)
 end
 
 local function renommer_sans_risque_de_portee_partielle()
@@ -381,7 +381,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("K",  vim.lsp.buf.hover,           "Documentation")
     map("<leader>rn", renommer_sans_risque_de_portee_partielle, "Renommer")
     map("<leader>ca", vim.lsp.buf.code_action, "Action de code")
-    map("<leader>rp", function() require("csharp-signature").ajouter_un_parametre() end,
+    map("<leader>rp", function() require("csharp-signature").add_parameter() end,
       "Ajouter un paramètre et propager aux appels")
     map("<leader>fm", function() vim.lsp.buf.format() end, "Formater")
     map("[d", function() vim.diagnostic.jump({ count = -1 }) end, "Diagnostic précédent")
