@@ -13,6 +13,7 @@ vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 250
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
+vim.opt.fixendofline = false
 vim.opt.spell = true
 vim.opt.spelllang = { "fr", "en" }
 vim.cmd.colorscheme("vsdark")
@@ -367,6 +368,10 @@ local function le_renommage_couvrirait_toute_la_solution(bufnr)
   return roslyn == nil or solutions_entierement_indexees[roslyn.id] == true
 end
 
+require("refacto.signature").declarer_la_solution_prete(function(client)
+  return solutions_entierement_indexees[client.id] == true
+end)
+
 local function renommer_sans_risque_de_portee_partielle()
   if not le_renommage_couvrirait_toute_la_solution(0) then
     return vim.notify(
@@ -392,6 +397,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("K",  vim.lsp.buf.hover,           "Documentation")
     map("<leader>rn", renommer_sans_risque_de_portee_partielle, "Renommer")
     map("<leader>ca", vim.lsp.buf.code_action, "Action de code")
+    map("<leader>rp", function() require("refacto.signature").ajouter_un_parametre() end,
+      "Ajouter un paramètre et propager aux appels")
     map("<leader>fm", function() vim.lsp.buf.format() end, "Formater")
     map("[d", function() vim.diagnostic.jump({ count = -1 }) end, "Diagnostic précédent")
     map("]d", function() vim.diagnostic.jump({ count = 1 })  end, "Diagnostic suivant")
