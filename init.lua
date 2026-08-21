@@ -339,6 +339,12 @@ require("lazy").setup({
     },
   },
 
+  -- Ajout de paramètre propagé aux appels (plugin maison)
+  { "blyscop/csharp-signature.nvim",
+    ft = "cs",
+    dependencies = { "seblyng/roslyn.nvim" },
+    opts = {} },
+
   -- Client base de données (voir étape 8)
   { "tpope/vim-dadbod" },
   { "kristijanhusak/vim-dadbod-ui",
@@ -350,27 +356,10 @@ require("lazy").setup({
 -- ============================================
 --  Raccourcis LSP (actifs dès qu'un serveur s'attache)
 -- ============================================
-local solutions_entierement_indexees = {}
-
-local function surveiller_la_fin_de_l_indexation(client)
-  local METHODE = "workspace/projectInitializationComplete"
-  local handler_du_plugin = client.handlers[METHODE]
-  client.handlers[METHODE] = function(err, resultat, contexte, config)
-    solutions_entierement_indexees[contexte.client_id] = true
-    if handler_du_plugin then
-      return handler_du_plugin(err, resultat, contexte, config)
-    end
-  end
-end
-
 local function le_renommage_couvrirait_toute_la_solution(bufnr)
   local roslyn = vim.lsp.get_clients({ bufnr = bufnr, name = "roslyn" })[1]
-  return roslyn == nil or solutions_entierement_indexees[roslyn.id] == true
+  return roslyn == nil or require("csharp-signature").solution_indexee(roslyn)
 end
-
-require("refacto.signature").declarer_la_solution_prete(function(client)
-  return solutions_entierement_indexees[client.id] == true
-end)
 
 local function renommer_sans_risque_de_portee_partielle()
   if not le_renommage_couvrirait_toute_la_solution(0) then
@@ -383,11 +372,6 @@ end
 
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(ev)
-    local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    if client and client.name == "roslyn" then
-      surveiller_la_fin_de_l_indexation(client)
-    end
-
     local map = function(k, fn, desc)
       vim.keymap.set("n", k, fn, { buffer = ev.buf, desc = desc })
     end
@@ -397,7 +381,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("K",  vim.lsp.buf.hover,           "Documentation")
     map("<leader>rn", renommer_sans_risque_de_portee_partielle, "Renommer")
     map("<leader>ca", vim.lsp.buf.code_action, "Action de code")
-    map("<leader>rp", function() require("refacto.signature").ajouter_un_parametre() end,
+    map("<leader>rp", function() require("csharp-signature").ajouter_un_parametre() end,
       "Ajouter un paramètre et propager aux appels")
     map("<leader>fm", function() vim.lsp.buf.format() end, "Formater")
     map("[d", function() vim.diagnostic.jump({ count = -1 }) end, "Diagnostic précédent")
