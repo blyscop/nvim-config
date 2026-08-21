@@ -386,8 +386,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("K",  vim.lsp.buf.hover,           "Documentation")
     map("<leader>rn", renommer_sans_risque_de_portee_partielle, "Renommer")
     map("<leader>ca", vim.lsp.buf.code_action, "Action de code")
-    map("<leader>rp", function() require("csharp-signature").add_parameter() end,
-      "Ajouter un paramètre et propager aux appels")
+    map("<leader>rp", function() require("csharp-signature").change_signature() end,
+      "Modifier la signature et propager aux appels")
+    map("<leader>ra", function() require("csharp-signature").add_parameter() end,
+      "Ajouter un paramètre (voie rapide)")
     map("<leader>fm", function() vim.lsp.buf.format() end, "Formater")
     map("[d", function() vim.diagnostic.jump({ count = -1 }) end, "Diagnostic précédent")
     map("]d", function() vim.diagnostic.jump({ count = 1 })  end, "Diagnostic suivant")
