@@ -83,6 +83,46 @@ local function insertion_avant_la_parenthese_fermante(bufnr, liste, texte_a_inse
   }
 end
 
+local function position_du_noeud(noeud)
+  local ligne, colonne = noeud:range()
+  return { line = ligne, character = colonne }
+end
+
+local function dernier_identifiant(expression)
+  if expression:type() == "identifier" then return expression end
+  for enfant in expression:iter_children() do
+    if enfant:type() == "identifier" then expression = enfant end
+  end
+  return expression
+end
+
+local function methode_visee_par_le_curseur(bufnr, ligne, colonne)
+  local noeud = vim.treesitter.get_node({ bufnr = bufnr, pos = { ligne, colonne } })
+  if not noeud then return nil, "position hors de l'arbre syntaxique" end
+
+  local declaration = remonte_jusqu_a(noeud, { method_declaration = true, local_function_statement = true })
+  if declaration then
+    local nom = declaration:field("name")[1]
+    local parametres = declaration:field("parameters")[1]
+    local curseur_sur_la_signature = noeud == nom
+      or (parametres and vim.treesitter.is_in_node_range(parametres, ligne, colonne))
+    if curseur_sur_la_signature then
+      return position_du_noeud(nom), vim.treesitter.get_node_text(nom, bufnr)
+    end
+  end
+
+  local expression = expression_designant_la_methode(noeud)
+  local appel = expression:parent()
+  if appel and appel:type() == "invocation_expression" and appel:field("function")[1] == expression then
+    local nom = dernier_identifiant(expression)
+    return position_du_noeud(nom), vim.treesitter.get_node_text(nom, bufnr)
+  end
+
+  return nil, string.format(
+    "Place le curseur sur le nom de la méthode ou dans sa liste de paramètres (ici : %s « %s »).",
+    noeud:type(), vim.treesitter.get_node_text(noeud, bufnr):sub(1, 30))
+end
+
 local function references_de_la_methode(client, bufnr, position, suite)
   client:request("textDocument/references", {
     textDocument = vim.lsp.util.make_text_document_params(bufnr),
@@ -172,12 +212,15 @@ function M.ajouter_un_parametre()
     return vim.notify("Solution en cours d'indexation : les appels ne seraient pas tous trouvés.", vim.log.levels.WARN)
   end
 
-  local parametre = vim.fn.input("Paramètre à déclarer (ex. bool isOutOfContract) : ")
+  local curseur = vim.api.nvim_win_get_cursor(0)
+  local position, methode = methode_visee_par_le_curseur(bufnr, curseur[1] - 1, curseur[2])
+  if not position then
+    return vim.notify(methode, vim.log.levels.WARN, { title = "Ajouter un paramètre" })
+  end
+
+  local parametre = vim.fn.input(string.format("Paramètre à ajouter à %s (ex. bool isActif) : ", methode))
   if parametre == "" then return end
   local argument = vim.fn.input("Argument à passer aux appels (vide = ne pas les toucher) : ")
-
-  local curseur = vim.api.nvim_win_get_cursor(0)
-  local position = { line = curseur[1] - 1, character = curseur[2] }
 
   references_de_la_methode(client, bufnr, position, function(references)
     if #references == 0 then
