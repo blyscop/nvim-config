@@ -144,10 +144,13 @@ require("lazy").setup({
   { "hrsh7th/nvim-cmp",
     dependencies = { "hrsh7th/cmp-nvim-lsp", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip",
                      "hrsh7th/cmp-buffer", "hrsh7th/cmp-path",
-                     "f3fora/cmp-spell", "windwp/nvim-autopairs", "onsails/lspkind.nvim" },
+                     "f3fora/cmp-spell", "windwp/nvim-autopairs", "onsails/lspkind.nvim",
+                     "rafamadriz/friendly-snippets" },
     config = function()
       local cmp = require("cmp")
       local luasnip = require("luasnip")
+
+      require("luasnip.loaders.from_vscode").lazy_load()
 
       local function le_menu_puis_le_snippet_puis_la_touche(fallback, sens)
         if cmp.visible() then
