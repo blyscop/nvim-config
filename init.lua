@@ -152,18 +152,26 @@ require("lazy").setup({
 
       require("luasnip.loaders.from_vscode").lazy_load()
 
-      local function le_menu_puis_le_snippet_puis_la_touche(fallback, sens)
+      local function une_suggestion_est_affichee()
+        local ok, virtual_text = pcall(require, "codeium.virtual_text")
+        return ok and virtual_text.status().state == "completions"
+      end
+
+      local function le_menu_puis_le_snippet_puis_la_suggestion_puis_la_touche(fallback, sens)
         if cmp.visible() then
           return sens > 0 and cmp.select_next_item() or cmp.select_prev_item()
         end
         if luasnip.locally_jumpable(sens) then
           return luasnip.jump(sens)
         end
+        if sens > 0 and une_suggestion_est_affichee() then
+          return require("codeium.virtual_text").accept()
+        end
         fallback()
       end
 
-      local function avancer(fallback) le_menu_puis_le_snippet_puis_la_touche(fallback, 1) end
-      local function reculer(fallback) le_menu_puis_le_snippet_puis_la_touche(fallback, -1) end
+      local function avancer(fallback) le_menu_puis_le_snippet_puis_la_suggestion_puis_la_touche(fallback, 1) end
+      local function reculer(fallback) le_menu_puis_le_snippet_puis_la_suggestion_puis_la_touche(fallback, -1) end
 
       cmp.setup({
         snippet = { expand = function(a) require("luasnip").lsp_expand(a.body) end },
@@ -384,6 +392,53 @@ require("lazy").setup({
       { "<leader>dk", function() require("dapui").eval() end,       desc = "Évaluer sous le curseur" },
     },
   },
+
+  -- Suggestions en ligne (service hébergé Windsurf)
+  { "Exafunction/windsurf.nvim",
+    event = "InsertEnter",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      require("codeium").setup({
+        enable_cmp_source = false,
+        virtual_text = {
+          enabled = true,
+          idle_delay = 75,
+          key_bindings = {
+            accept = false,
+            accept_word = "<M-w>",
+            accept_line = "<M-l>",
+            next = "<M-]>",
+            prev = "<M-[>",
+            clear = "<M-c>",
+          },
+        },
+      })
+
+      local FICHIERS_A_NE_PAS_ENVOYER = {
+        "%.env", "%.env%..*", "%.pem$", "%.key$", "%.cert$", "%.crt$",
+        "%.pfx$", "%.p12$", "secrets%.ya?ml$", "appsettings%..*%.json$",
+        "%.publishsettings$", "%.dev%.vars$",
+      }
+
+      local function le_fichier_peut_partir(chemin)
+        local nom = vim.fn.fnamemodify(chemin, ":t")
+        for _, motif in ipairs(FICHIERS_A_NE_PAS_ENVOYER) do
+          if nom:match(motif) then return false end
+        end
+        return true
+      end
+
+      vim.api.nvim_create_autocmd({ "BufEnter", "BufNewFile" }, {
+        group = vim.api.nvim_create_augroup("WindsurfSecrets", { clear = true }),
+        callback = function(evenement)
+          local codeium = require("codeium")
+          local autorise = le_fichier_peut_partir(evenement.file)
+          if codeium.s ~= nil and codeium.s.enabled ~= autorise then
+            if autorise then codeium.enable() else codeium.disable() end
+          end
+        end,
+      })
+    end },
 
   -- Ajout de paramètre propagé aux appels (plugin maison)
   { "blyscop/csharp-signature.nvim",
