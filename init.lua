@@ -147,13 +147,28 @@ require("lazy").setup({
                      "f3fora/cmp-spell", "windwp/nvim-autopairs", "onsails/lspkind.nvim" },
     config = function()
       local cmp = require("cmp")
+      local luasnip = require("luasnip")
+
+      local function le_menu_puis_le_snippet_puis_la_touche(fallback, sens)
+        if cmp.visible() then
+          return sens > 0 and cmp.select_next_item() or cmp.select_prev_item()
+        end
+        if luasnip.locally_jumpable(sens) then
+          return luasnip.jump(sens)
+        end
+        fallback()
+      end
+
+      local function avancer(fallback) le_menu_puis_le_snippet_puis_la_touche(fallback, 1) end
+      local function reculer(fallback) le_menu_puis_le_snippet_puis_la_touche(fallback, -1) end
+
       cmp.setup({
         snippet = { expand = function(a) require("luasnip").lsp_expand(a.body) end },
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<CR>"]      = cmp.mapping.confirm({ select = true }),
-          ["<Tab>"]     = cmp.mapping.select_next_item(),
-          ["<S-Tab>"]   = cmp.mapping.select_prev_item(),
+          ["<Tab>"]     = cmp.mapping(avancer, { "i", "s" }),
+          ["<S-Tab>"]   = cmp.mapping(reculer, { "i", "s" }),
         }),
         sources = {
           { name = "nvim_lsp" },
