@@ -13,6 +13,7 @@ vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 250
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
+vim.opt.undofile = true
 vim.opt.fixendofline = false
 vim.opt.spell = true
 vim.opt.spelllang = { "fr", "en" }
@@ -47,11 +48,32 @@ require("lazy").setup({
       { "<leader>fg", function() MiniPick.builtin.grep_live() end, desc = "Rechercher" },
       { "<leader>fb", function() MiniPick.builtin.buffers() end,   desc = "Buffers" },
       { "<leader>e",  function() MiniFiles.open() end,             desc = "Explorateur" },
+      { "<leader>gh", function() MiniGit.show_at_cursor() end,      desc = "Historique sous le curseur" },
+      { "<leader>gh", function() MiniGit.show_at_cursor() end,      desc = "Historique de la sélection", mode = "x" },
+      { "<leader>gb", "<cmd>vertical Git blame -- %<cr>",           desc = "Blame du fichier" },
+      { "<leader>gd", function() MiniDiff.toggle_overlay() end,     desc = "Superposition des différences" },
     },
     config = function()
       require("mini.icons").setup()
       require("mini.pick").setup()
       require("mini.files").setup()
+      require("mini.diff").setup()
+      require("mini.git").setup()
+
+      local function aligner_le_blame_sur_le_source(evenement)
+        if evenement.data.git_subcommand ~= "blame" then return end
+        vim.wo.wrap = false
+        vim.fn.winrestview({ topline = vim.fn.line("w0", vim.fn.win_getid(vim.fn.winnr("#"))) })
+        vim.wo.scrollbind = true
+        vim.api.nvim_win_call(vim.fn.win_getid(vim.fn.winnr("#")), function()
+          vim.wo.scrollbind = true
+        end)
+      end
+
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "MiniGitCommandSplit",
+        callback = aligner_le_blame_sur_le_source,
+      })
 
       local clue = require("mini.clue")
       clue.setup({
@@ -74,6 +96,7 @@ require("lazy").setup({
         clues = {
           { mode = "n", keys = "<Leader>d", desc = "+Débogage" },
           { mode = "n", keys = "<Leader>f", desc = "+Fichiers et recherche" },
+          { mode = "n", keys = "<Leader>g", desc = "+Git" },
           { mode = "n", keys = "<Leader>c", desc = "+Code" },
           { mode = "n", keys = "<Leader>r", desc = "+Refactoring" },
           clue.gen_clues.builtin_completion(),
