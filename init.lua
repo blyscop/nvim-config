@@ -15,6 +15,7 @@ vim.opt.ignorecase = true
 vim.opt.smartcase = true
 vim.opt.undofile = true
 vim.opt.fixendofline = false
+vim.opt.scrolloff = 8
 vim.opt.spell = true
 vim.opt.spelllang = { "fr", "en" }
 vim.cmd.colorscheme("vsdark")
@@ -126,6 +127,12 @@ require("lazy").setup({
 
       local LIGNES_MAX_AVANT_RALENTISSEMENT_DU_PARSING = 20000
 
+      local function activer_le_repli_par_la_syntaxe()
+        vim.wo.foldmethod = "expr"
+        vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+        vim.wo.foldlevel = 99
+      end
+
       local function activer_coloration_si_parser_disponible(evenement)
         if vim.api.nvim_buf_line_count(evenement.buf) > LIGNES_MAX_AVANT_RALENTISSEMENT_DU_PARSING then
           return
@@ -134,6 +141,7 @@ require("lazy").setup({
         local parser_charge, disponible = pcall(vim.treesitter.language.add, langage)
         if parser_charge and disponible then
           pcall(vim.treesitter.start, evenement.buf, langage)
+          pcall(activer_le_repli_par_la_syntaxe)
         end
       end
 
