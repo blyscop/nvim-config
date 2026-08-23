@@ -157,26 +157,33 @@ require("lazy").setup({
         return ok and virtual_text.status().state == "completions"
       end
 
-      local function le_menu_puis_le_snippet_puis_la_suggestion_puis_la_touche(fallback, sens)
-        if cmp.visible() then
-          return sens > 0 and cmp.select_next_item() or cmp.select_prev_item()
+      local function valider_l_entree_ou_descendre_dans_le_menu()
+        if cmp.get_selected_entry() then
+          return cmp.confirm()
         end
-        if luasnip.locally_jumpable(sens) then
-          return luasnip.jump(sens)
-        end
-        if sens > 0 and une_suggestion_est_affichee() then
-          return require("codeium.virtual_text").accept()
-        end
+        cmp.select_next_item()
+      end
+
+      local function avancer(fallback)
+        if cmp.visible() then return valider_l_entree_ou_descendre_dans_le_menu() end
+        if luasnip.locally_jumpable(1) then return luasnip.jump(1) end
+        if une_suggestion_est_affichee() then return require("codeium.virtual_text").accept() end
         fallback()
       end
 
-      local function avancer(fallback) le_menu_puis_le_snippet_puis_la_suggestion_puis_la_touche(fallback, 1) end
-      local function reculer(fallback) le_menu_puis_le_snippet_puis_la_suggestion_puis_la_touche(fallback, -1) end
+      local function reculer(fallback)
+        if cmp.visible() then return cmp.select_prev_item() end
+        if luasnip.locally_jumpable(-1) then return luasnip.jump(-1) end
+        fallback()
+      end
 
       cmp.setup({
         snippet = { expand = function(a) require("luasnip").lsp_expand(a.body) end },
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
+          ["<M-\\>"]    = cmp.mapping(function()
+            require("codeium.virtual_text").complete()
+          end, { "i" }),
           ["<CR>"]      = cmp.mapping.confirm({ select = true }),
           ["<Tab>"]     = cmp.mapping(avancer, { "i", "s" }),
           ["<S-Tab>"]   = cmp.mapping(reculer, { "i", "s" }),
