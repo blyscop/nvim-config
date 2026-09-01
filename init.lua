@@ -58,6 +58,7 @@ require("lazy").setup({
       require("mini.icons").setup()
       require("mini.pick").setup()
       require("mini.files").setup()
+      require("mini.jump2d").setup({ mappings = { start_jumping = "<leader>j" } })
       require("mini.diff").setup()
       require("mini.git").setup()
 
@@ -100,6 +101,7 @@ require("lazy").setup({
           { mode = "n", keys = "<Leader>g", desc = "+Git" },
           { mode = "n", keys = "<Leader>c", desc = "+Code" },
           { mode = "n", keys = "<Leader>r", desc = "+Refactoring" },
+          { mode = "n", keys = "<Leader>j", desc = "Sauter à un mot visible" },
           clue.gen_clues.builtin_completion(),
           clue.gen_clues.g(),
           clue.gen_clues.marks(),
