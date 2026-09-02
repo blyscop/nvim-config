@@ -59,6 +59,18 @@ require("lazy").setup({
       require("mini.pick").setup()
       require("mini.files").setup()
       require("mini.jump2d").setup({ mappings = { start_jumping = "<leader>j" } })
+
+      local objet_treesitter = require("mini.ai").gen_spec.treesitter
+      require("mini.ai").setup({
+        custom_textobjects = {
+          f = objet_treesitter({ a = "@function.outer", i = "@function.inner" }),
+          c = objet_treesitter({ a = "@class.outer", i = "@class.inner" }),
+          o = objet_treesitter({
+            a = { "@conditional.outer", "@loop.outer" },
+            i = { "@conditional.inner", "@loop.inner" },
+          }),
+        },
+      })
       require("mini.diff").setup()
       require("mini.git").setup()
 
@@ -117,6 +129,7 @@ require("lazy").setup({
   -- Coloration syntaxique fine
   { "nvim-treesitter/nvim-treesitter",
     branch = "main",
+    dependencies = { { "nvim-treesitter/nvim-treesitter-textobjects", branch = "main" } },
     build = ":TSUpdate",
     config = function()
       require("nvim-treesitter").install({
